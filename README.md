@@ -4,7 +4,7 @@ This site aims to be as similar to the april fools r/place event, where users we
 
 "Alone you can create something, but together, you can create something bigger" (or something like that)
 
-**Site link: https://outfit8.github.io/**
+**Site link: https://outfit8tsb.github.io/**
 Thanks to Zekiah-A for Making original https://rplace.live.
 When 2023: i was playing that masterpiece i made void disappear via my operation.
 at 2024: turkey has overtook everything.
