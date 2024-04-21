@@ -331,6 +331,43 @@
                 pleaseBeRespectful: "敬意を払い、スパム行為をしないようにしてください!",
                 enterNickname: "ニックネームを入力してください...",
                 enterMessage: "メッセージを入力してください..."
+            },
+	    ko: {
+                connecting: "연결 중...",
+                connectingFail: "서버에 연결할 수 없습니다.",
+                downloadingImage: "이미지 다운로드 중...",
+                placeTile: "픽셀 놓기",
+                donate: "We Had To Sell Donate Option due to Budget Cuts.",
+                myAccount: "내 계정",
+                chat: "채팅",
+                liveChat: "라이브 채팅:",
+                nicknameToContinue: "닉네임을 입력해주십시오:",
+                changeChannel: "채널 변경:",
+                captchaPrompt: "...",
+                webappInstall: "웹 앱으로 사용해보기",
+                connectionProblems: "연결에 문제가 발생하셨나요?",
+                tryClickingHere: "try clicking here",
+                pleaseBeRespectful: "Please be respectful and try not to spam!",
+                enterNickname: "Enter nickname...",
+                enterMessage: "Enter message...",
+                signInInstead: "Sign in instead",
+                createNewAccount: "Create a new account",
+                mention: "Mention",
+                replyTo: "Reply to",
+                report: "Report",
+                block: "Block",
+                unblock: "Unblock",
+                changeMyName: "Change my name",
+                putOnCanvas: "🫧 Put on canvas",
+                sendInLiveChat: "📨 Send in live chat",
+                overlayMenu: "Overlay menu",
+                modalAboutContent: "There is an empty canvas.<br><br>You may place a tile upon it, but you must wait to place another.<br><br>Individually you can create something.<br><br>Together you can create something more.",
+                overlayMenuDesciption: "Visualise your build with a template image!",
+                messageCouldntBeLoaded: "Message could not be loaded",
+                placedBy: "Placed by:",
+                lockMessage: "This canvas is locked... You can't place pixels here anymore",
+                adHidden: "Ad hidden for 14 days!",
+                specialEventTitle: "Special event - 2023-2024 full canvas timelapse released!"
             }
         }
 
@@ -1558,16 +1595,6 @@
 <meta name="theme-color" content="#ff4500">
 </head>
     <body>
-        <div id="loadingScreen">
-            <img src="images/rplace-loader.gif" style="position: absolute; width: 128px; height: 128px; z-index: 22;"/>
-            <canvas id="waitingGameCanvas" style="width: 100%; height: 100%; z-index: 21;"></canvas>
-            <div id="connproblems">
-                <span translate="connectionProblems">Connection problems?</span>
-                <a onclick="localStorage.clear(); history.pushState(null, '', location.origin)" href translate="tryClickingHere">try clicking here</a>
-                <br>
-                or tweet us
-                <a href="https://twitter.com/rplacetk">@rplacetk</a>
-            </div>
         </div>
         <div id="maincontent">
             <div id="bgWrapper" style="z-index: -1; position: absolute; pointer-events: none; left: 0; top: 0; width: 100%; height: 100%;">
@@ -2486,7 +2513,7 @@
         let PALETTE = [0xff1a006d, 0xff3900be, 0xff0045ff, 0xff00a8ff, 0xff35d6ff, 0xffb8f8ff, 0xff68a300, 0xff78cc00, 0xff56ed7e, 0xff6f7500, 0xffaa9e00, 0xffc0cc00, 0xffa45024, 0xffea9036, 0xfff4e951, 0xffc13a49, 0xffff5c6a, 0xffffb394, 0xff9f1e81, 0xffc04ab4, 0xffffabe4, 0xff7f10de, 0xff8138ff, 0xffaa99ff, 0xff2f486d, 0xff26699c, 0xff70b4ff, 0xff000000, 0xff525251, 0xff908d89, 0xffd9d7d4, 0xffffffff]
         let WIDTH = 2000
         let HEIGHT = 2000
-        let COOLDOWN = 10e3
+        let COOLDOWN = 0
     </script>
     <script>
         let i = +localStorage.vote
