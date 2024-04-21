@@ -1,17 +1,26 @@
-# rplace.live - An open source faithful recreation of r/place
+# InfinitePlaceAnarchy2019 - An open source fork of https://rplace.live.
 
-This site aims to be as similar to the april fools r/place event, where users were given a 2000x2000px canvas, allowing anyone to place a single pixel on it at a time. 
+This site aims to be as similar to the april fools r/place event, where users were given a 2000x2000px canvas, allowing anyone to place a single pixel on it at a time. but we upgraded to bigger one. from this one lot of canvas can be played on this site via typing server address of your tkofficial server.
 
 "Alone you can create something, but together, you can create something bigger" (or something like that)
 
-**Site link: https://rplace.live/**
-
+**Site link: https://outfit8.github.io/**
+Thanks to Zekiah-A for Making original https://rplace.live.
+When 2023: i was playing that masterpiece i made void disappear via my operation.
+at 2024: turkey has overtook everything.
+and after that: the color reset.
+so that's why it was created as a fork.
+message to turks who overtook everthing:
+All Of You are Eliminated from My Shooooaw. Foreva. - two, tpot 11 by kyooby
+ 
 ![https://rplace.live running on firefox as of 18/4/2022](site_demo.png)
 
 *Feel free to contribute!*
 
-# Setting up my own custom canvas!
-To set up your own custom canvas to be played on rplace.tk, we have made a guide at our [Manual](MANUAL.md)!
+# custom canvas
+To set up your own custom canvas to be played on here, 
+we have made a guide at our [Manual](MANUAL.md).
+we also provide the system to connect any canvas via TKOfficial.
 
 
 # Development
