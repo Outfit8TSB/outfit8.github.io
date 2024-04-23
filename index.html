@@ -1751,7 +1751,25 @@
                 }
             " translate="connecting">Connecting...</div>
             <canvas id="canvas" width="9000" height="9000" noselect></canvas>
-            <div id="canvparent1" noselect>
+		
+		<script>
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+canvas.addEventListener('click', function(event) {
+    var rect = canvas.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var y = event.clientY - rect.top;
+    placePixel(x, y, '#000000');  // Place a black pixel
+}, false);
+
+function placePixel(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, 1, 1);
+}
+</script>
+           
+		<div id="canvparent1" noselect>
                 <img id="edge" height="226" width="290" src="images/snoo-edge.png" />
             </div>
             <div id="canvparent2" noselect>
