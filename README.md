@@ -14,6 +14,33 @@ message to turks who overtook everthing:
 All Of You are Eliminated from My Shooooaw. Foreva. - two, tpot 11 by kyooby
  
 ![https://rplace.live running on firefox as of 18/4/2022](site_demo.png)
+at site demo: Cave Story Got Overwritten by FN or Something and Has Disappeared.
+We Cannot Take It Anymore Since Cave Story Charathers Are Now Mascot Of Infinite Place Anarchy 2019.
+we are recovering this Site Demo as a offline canvas
+and we will take revenge on who overwritten this.
+Let's Nuke Em On here.
+1.
+Delete Loading Screen
+Press F12
+and Delete this to connect to the Offline Canvas! 
+```
+<div id="loadingScreen" style="opacity: 1; display: flex;">
+            <img src="images/rplace-offline.png" style="position: absolute; width: 128px; height: 128px; z-index: 22;">
+            <canvas id="waitingGameCanvas" style="width: 100%; height: 100%; z-index: 21;" width="1112" height="966"></canvas>
+<input placeholder="Enter IP" onclick="this.focus()" onkeypress="if(event.keyCode==13){let a = localStorage.servers?localStorage.servers.split('\n'):[];if(a.length>9)a.pop();a.unshift(this.value);localStorage.servers=a.join('\n');wsinit(this.value)}" style="display: block;text-align:center;margin: auto;width: 300px;max-width: 80vw;margin-bottom:30px;">
+	    <div id="connproblems" style="opacity: 1;">
+                <span translate="connectionProblems">연결에 문제가 발생하셨나요?</span>
+                <a onclick="localStorage.clear(); history.pushState(null, '', location.origin)" href="" translate="tryClickingHere">try clicking here</a>
+                <br>
+                or tweet us
+                <a href="https://twitter.com/rplacetk">@rplacetk</a>
+            </div>
+            </div>
+```
+2. Place Pixels Infinitely Where the Ones Who Destroyed Cave Story
+3. Draw A Gigantic BFDI / Cave Story / Infinite Place Anarchy 2019 Logo!
+4. Nuke EM! NUKE EM ALL!!!
+5. NUKE EM ALL YEAH YEAH YEAH! DELETE THEM ALL! YEAH YEAH YEAH! SO YOU CAN AVENGE CAVE STORY! SO YOU CAN AVENGE CAVE STORY! - Pencil
 
 *Feel free to contribute!*
 
