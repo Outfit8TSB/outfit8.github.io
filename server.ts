@@ -18,7 +18,7 @@ import { isUser } from "ipapi-sync"
 import { Worker } from "worker_threads"
 import cookie from "cookie"
 import repl from "basic-repl"
-import { $, Serve, Server, ServerWebSocket, TLSWebSocketServeOptions } from "bun"
+import { $, Server, ServerWebSocket, TLSWebSocketServeOptions } from "bun"
 import { DbInternals, LiveChatMessage } from "./db-worker.ts"
 import { PublicPromise } from "./server-types.ts"
 
@@ -133,10 +133,14 @@ if (CHALLENGE) {
     }
 }
 
-// TODO: Maybe a  set for { pos, Col, Id } might be better
-const newPos: number[] = []
-const newCols: number[] = []
-const newIds: number[] = []
+type PixelInfo = { index: number, colour: number, placer: ServerWebSocket<ClientData> }
+const newPixels:PixelInfo[] = [] 
+// Reports must persist between client sessions and be rate limited
+let reportCooldownMs = 60_000
+const reportCooldowns = new Map<string, number>()
+let activityCooldownMs = 10_000 
+const activityCooldowns = new Map<string, number>()
+// Cooldowns must persist between client sessions
 const cooldowns = new Map<string, number>()
 type LinkKeyInfo = {
     intId: number,
@@ -278,9 +282,12 @@ async function getBansheetsIps() {
     const bansheetsText = await fs.readFile("bansheets.txt")
     const banListUrls = bansheetsText.toString().trim().split('\n')
     const banLists = await Promise.all(
-        banListUrls.map(banListUrl => fetch(banListUrl).then(response => response.text()))
+        banListUrls.map(banListUrl => fetch(banListUrl)
+            .then((response: Response) => response.text()))
     )
-    const blacklistedIps = banLists.flatMap(line => line.trim().split('\n').map(ip => ip.split(':')[0].trim()))
+    const blacklistedIps = banLists
+        .flatMap((line: string) => line.trim().split('\n')
+        .map((ip: string) => ip.split(':')[0].trim()))
     return new Set(blacklistedIps)
 }
 let BLACKLISTED = await getBansheetsIps()
@@ -593,7 +600,7 @@ type ClientData = {
     headers: Headers,
     url: string,
     codeHash: string,
-    perms: string,
+    perms: "vip"|"chatmod"|"canvasmod"|"admin",
     lastChat: number,
     connDate: number,
     cd: number,
@@ -603,7 +610,8 @@ type ClientData = {
     voted: number,
     challenge: "pending"|"active"|undefined,
     turnstile: "active"|undefined,
-    lastPeriodCaptcha: number
+    lastPeriodCaptcha: number,
+    shadowBanned: boolean
 }
 interface RplaceServer extends Server {
     clients: Set<ServerWebSocket<ClientData>>
@@ -822,13 +830,13 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
 
             switch (data[0]) {
                 case 4: { // pixel place
-                    if (data.length < 6) {
+                    if (data.length < 6 || ws.data.shadowBanned === true) {
                         return
                     }
                     const i = data.readUInt32BE(1)
                     const c = data[5]
                     const cd = cooldowns.get(IP) || COOLDOWN
-		    const PALETTE_SIZE = PALETTE?.length || 32
+                    const PALETTE_SIZE = PALETTE?.length || 32
                     if (i >= BOARD.length || c >= PALETTE_SIZE) {
                         return
                     }
@@ -854,12 +862,9 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                     CHANGES[i] = c
                     // Damn you, blob!
                     cooldowns.set(IP, NOW + CD)
-                    newPos.push(i)
-                    newCols.push(c)
-                    if (INCLUDE_PLACER) newIds.push(ws.data.intId)
+                    newPixels.push({ index: i, colour: c, placer: ws })
                     postDbMessage("updatePixelPlace", ws.data.intId)
                     break
-                    
                 }
                 case 12: { // Submit name
                     let name = decoderUTF8.decode(data.subarray(1))
@@ -921,9 +926,34 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                     ws.send(historyBuffer)
                     break
                 }
+                case 14: { // Live chat report
+                    const reportCooldown = reportCooldowns.get(ws.data.ip) ||  0
+                    if (reportCooldown > NOW) {
+                        return
+                    }
+                    reportCooldowns.set(ws.data.ip, NOW + reportCooldownMs)
+                    const messageId = data.readUInt32BE(1)
+                    const reason = data.subarray(5, Math.min(data.byteLength, 280)).toString()
+                    const message = await makeDbRequest("getLiveChatMessage", messageId) as LiveChatMessage|null
+                    if (message == null) {
+                        return
+                    }
+                    const messageSenderName = await makeDbRequest("getUserChatName", message.senderIntId)
+                    // TODO: Sus - Live chat message may not be in DB by time report is received, could cause a missing foreign key reference
+                    postDbMessage("insertLiveChatReport", { reporterId: ws.data.intId, messageId: messageId, reason: reason })
+    
+                    const sanitisedChannel = message.channel.replaceAll("```", "`​`​`​")
+                    const sanitisedMessage = message.message.replaceAll("```", "`​`​`​")
+                    modWebhookLog(`User **#${ws.data.intId}** (**${ws.data.chatName}**) reported live chat message:\n` +
+                        `Id: **${message.messageId}**\nChannel: **${sanitisedChannel}**\nSender: **#${message.senderIntId} (${messageSenderName})**\n` +
+                        `Send date: **${new Date(message.sendDate).toISOString()}**\n` +
+                        `Message:\n\`\`\`\n${sanitisedMessage}\n\`\`\`\n`)
+                    break
+                }
                 case 15: { // chat
                     if (ws.data.lastChat + (CHAT_COOLDOWN_MS || 2500) > NOW
-                        || data.length > (CHAT_MAX_LENGTH || 400) || bans.has(IP) || mutes.has(IP)) {
+                        || data.length > (CHAT_MAX_LENGTH || 400) || bans.has(IP) || mutes.has(IP)
+                        || ws.data.shadowBanned === true) {
                         return
                     }
                     ws.data.lastChat = NOW
@@ -988,7 +1018,7 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                     }catch (err){ console.log("Could not post chat message to discord: " + err) }
                     break
                 }
-                case 16: {
+                case 16: { // Captcha
                     const response = data.subarray(1).toString()
                     const info = toValidate.get(ws)
                     if (info && response === info.answer && info.start + CAPTCHA_EXPIRY_SECS * 1000 > NOW) {
@@ -1013,7 +1043,7 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                     }
                     break
                 }
-                case 20: {
+                case 20: { // TODO: Deprecated - votes
                     ws.data.voted ^= 1 << data[1]
                     if (ws.data.voted & (1 << data[1])) VOTES[data[1] & 31]++
                     else VOTES[data[1] & 31]--
@@ -1057,7 +1087,25 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                     delete ws.data.turnstile
                     break
                 }
-                case 96: {// Set preban
+                case 30: { // Client activity webdriver
+                    const activityCooldown = activityCooldowns.get(ws.data.ip) ||  0
+                    if (activityCooldown > NOW) {
+                        return
+                    }
+                    activityCooldowns.set(ws.data.ip, NOW + activityCooldownMs)
+                    if (data.byteLength > 1025) {
+                        return
+                    }
+                    const detail = decoderUTF8.decode(data.buffer.slice(1))
+                    ws.data.shadowBanned = true
+                    const sanitisedDetail = detail.replaceAll("```", "`​`​`​")
+                    modWebhookLog("Client activity reported webdriver usage:\nClient data:\n```\n" +
+                        `Ip: ${ws.data.ip}\nChat name: ${ws.data.chatName}\nUser id: ${ws.data.intId}\nPerms: ${ws.data.perms}\nHeaders: ${JSON.stringify(ws.data.headers, null, 4)}\n` +
+                        `Connect date: ${new Date(ws.data.connDate).toLocaleString()}\nLast period captcha: ${new Date(ws.data.lastPeriodCaptcha).toLocaleString()}\n` +
+                        `\`\`\`\nClient details (untrusted):\n\`\`\`\n${sanitisedDetail}\n\`\`\`\nServer has temporarily shadowbanned this connection.`)
+                    break
+                }
+                case 96: { // Set preban
                     let offset = 1
                     if (ws.data.perms !== "admin" && ws.data.perms !== "canvasmod") return
                     const violation = data[offset++] // 0 - kick, 1 - ban, 2 - nothing (log)
@@ -1185,7 +1233,7 @@ const serverOptions:TLSWebSocketServeOptions<ClientData> = {
                         i % WIDTH}, ${Math.floor(i / WIDTH)}), ${w}x${h}px (${w * h} pixels changed)`)
                     break
                 }
-                case 150: {        
+                case 150: {
                     const linkKey = randomString(32)
                     linkKeyInfos.set(linkKey, { intId: ws.data.intId, dateCreated: Date.now() })
                     const linkKeyBuf = encoderUTF8.encode("\x96" + linkKey) // code 150
@@ -1229,14 +1277,19 @@ bunServer.clients = new Set<ServerWebSocket<ClientData>>()
 const wss:RplaceServer = bunServer
 
 /**
- * @param {string} message
+ * Log a moderation-only message to console, the mod webhook, and the mod log text file
+ * @param {string} message Raw composite string message to be logged
  */
 async function modWebhookLog(message:string) {
-    console.log(message)
-    if (!MOD_WEBHOOK_URL) return
-    message = message.replace("@", "@​")
-    const msgHook = { username: "RPLACE SERVER", content: message }
-    await fetch(MOD_WEBHOOK_URL + "?wait=true", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(msgHook) })
+    const messageString = `[${new Date().toLocaleString()}] ${message}`
+    console.log(messageString)
+    fs.appendFile("./modlog.txt", messageString+"\n\n---\n\n")
+
+    if (MOD_WEBHOOK_URL) {
+        message = message.replace("@", "@​")
+        const msgHook = { username: "RPLACE SERVER", content: message }
+        await fetch(MOD_WEBHOOK_URL + "?wait=true", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(msgHook) })    
+    }
 }
 
 let NOW = Date.now()
@@ -1347,7 +1400,13 @@ let pastPxpsActionDate = 0
 
 let pixelTick = 0
 setInterval(function () {
-    const pxps = newPos.length
+    let pxps = 0
+    for (const newPixel of newPixels) {
+        if (newPixel.placer.data.perms !== "admin"
+            && newPixel.placer.data.perms !== "canvasmod") {
+            pxps++
+        }
+    }
     // Above min check threshold, has been window size secs since last corrective action, captcha enabled
     if (pxps > pastPxpsMin && NOW - pastPxpsActionDate > pastPxpsWindowSize && PXPS_SECURITY) {
         const pastSum = pastPxps.reduce((acc, val) => acc + val, 0)
@@ -1390,7 +1449,9 @@ setInterval(function () {
                 }, pastPxpsWindowSize * 1000)
 
                 const pxpsLogPath = `./${pxpsLogName}`
-                fs.appendFile(pxpsLogPath, "ip,intId,connDate,lastPeriodCaptcha,perms")
+                if (!fs.exists(pxpsLogPath)) {
+                    fs.appendFile(pxpsLogPath, "ip,intId,connDate,lastPeriodCaptcha,perms")
+                }
                 for (const p of wss.clients) {
                     fs.appendFile(pxpsLogPath, `\n${p.data.ip},${p.data.intId},${p.data.connDate
                         },${p.data.lastPeriodCaptcha},${p.data.perms}`)
@@ -1413,28 +1474,29 @@ setInterval(function () {
     fs.appendFile("./pxps.txt", `\n${pxps},${NOW}`)
 
     // No new pixels
-    if (newPos.length === 0) {
-        return
-    }
-    let pos, buf
-    if (INCLUDE_PLACER) {
-        buf = Buffer.alloc(1 + newPos.length * 9)
-        buf[0] = 5
-    }
-    else {
-        buf = Buffer.alloc(1 + newPos.length * 5)
-        buf[0] = 6
-    }
-    let i = 1
-    while ((pos = newPos.pop()) != undefined) {
-        buf.writeInt32BE(pos, i); i += 4
-        buf[i++] = newCols.pop()
+    if (newPixels.length !== 0) {
+        let i = 1
+        let newPixelsBuffer = null
+        let newPixel = null
         if (INCLUDE_PLACER) {
-            buf.writeInt32BE(newIds.pop(), i)
-            i += 4
+            newPixelsBuffer = Buffer.alloc(1 + newPixels.length * 9)
+            newPixelsBuffer[0] = 5
+            while ((newPixel = newPixels.pop()) !== undefined) {
+                newPixelsBuffer.writeInt32BE(newPixel.index, i); i += 4
+                newPixelsBuffer[i++] = newPixel.colour
+                newPixelsBuffer.writeInt32BE(newPixel.placer.data.intId, i); i += 4
+            }
         }
+        else {
+            newPixelsBuffer = Buffer.alloc(1 + newPixels.length * 5)
+            newPixelsBuffer[0] = 6
+            while ((newPixel = newPixels.pop()) !== undefined) {
+                newPixelsBuffer.writeInt32BE(newPixel.index, i); i += 4
+                newPixelsBuffer[i++] = newPixel.colour
+            }    
+        }
+        wss.publish("all", newPixelsBuffer)    
     }
-    wss.publish("all", buf)
 
     // Sweep up expired account linkages - 1 minute should be reasonable
     if (pixelTick % LINK_EXPIRY_SECS == 0) {
@@ -1477,7 +1539,9 @@ setInterval(async function () {
 
     // @ts-ignore
     fs.appendFile("./stats.txt", "\n" + realPlayers + "," + NOW)
-    if (LOCKED === true) return
+    if (LOCKED === true) {
+        return
+    }
     await fs.writeFile(path.join(PUSH_PLACE_PATH, "change" + (pushTick & 1 ? "2" : "")), CHANGES)
     if (pushTick % (PUSH_INTERVAL_MINS / 5 * 60) == 0) {
         try {
@@ -1654,6 +1718,36 @@ function announce(msg: string, channel: string|null = null, repliesTo:number|nul
             c.send(packet)
         }
     }
+}
+/**
+ * Expands canvas, along with updating changes and alerting all clients to a given size
+ */
+function expand(newWidth:number, newHeight:number) {
+    if (newHeight < HEIGHT || newWidth < WIDTH) {
+        console.error(`Can not expand board. ${newWidth}, ${newHeight
+            } is smaller than current dimensions (${WIDTH}, ${HEIGHT}))`)
+        return
+    }
+    const newBoard = new Uint8Array(newWidth * newHeight)
+    const newChanges = new Uint8Array(newWidth * newHeight).fill(255)
+    for (let y = 0; y < HEIGHT; y++) {
+        newBoard.set(BOARD.subarray(y * WIDTH, (y + 1) * WIDTH), y * WIDTH)
+        newChanges.set(CHANGES.subarray(y * WIDTH, (y + 1) * WIDTH), y * WIDTH)
+    }
+    BOARD = newBoard
+    CHANGES = newChanges
+    WIDTH = newWidth
+    HEIGHT = newHeight
+
+    const newChangesPacket = runLengthChanges()
+    for (const c of wss.clients) {
+        c.send(newChangesPacket)
+    }
+    console.log(`Successfully resized canvas to (${WIDTH}, ${HEIGHT}) and messaged all clients`)
+    console.log("\x1b[33;4;1mREMEMBER TO UPDATE server_config.json with the new board dimensions" +
+        "to avoid potential canvas corruption.\x1b[0m")
+    console.log("\x1b[33;4;1mREMEMBER TO CALL pushImage() to push commit new canvas dimensions" +
+        "to git\x1b[0m")
 }
 
 let shutdown = false

@@ -86,6 +86,13 @@ export type LiveChatDeletion = {
     reason: string,
     deletionDate: number
 }
+export type LiveChatReport = {
+    reportId: number,
+    reporterId: number,
+    messageId: number,
+    reason: string,
+    reportDate: number
+}
 type LiveChatUpdateDeletion = { deletionId: number, messageId: number }
 export type AuthenticateUser = { token: string, ip: string }
 export type DbInternals = {
@@ -100,7 +107,9 @@ export type DbInternals = {
     insertLiveChat: (data: LiveChatMessage) => void,
     deleteLiveChat: (data: DeletionMessageInfo) => void,
     insertPlaceChat: (data: PlaceChatMessage) => void,
-    updateUserVip:  (data: { intId: number, codeHash: string}) => void,
+    updateUserVip: (data: { intId: number, codeHash: string}) => void,
+    insertLiveChatReport: (data: { reporterId: number, messageId: number, reason: string }) => void,
+    getLiveChatMessage: (intId: number) => LiveChatMessage|null,
     exec: (data: { stmt: string, params: any }) => any[]|null
 }
 
@@ -210,6 +219,18 @@ const createLiveChatDeletions = `
     )
 `
 db.exec(createLiveChatDeletions)
+const createLiveChatReports = `
+    CREATE TABLE IF NOT EXISTS LiveChatReports (
+        reportId INTEGER PRIMARY KEY,
+        reporterId INTEGER NOT NULL,
+        messageId INTEGER NOT NULL,
+        reason TEXT,
+        reportDate INTEGER,
+        FOREIGN KEY (reporterId) REFERENCES Users(intId),
+        FOREIGN KEY (messageId) REFERENCES LiveChatMessages(messageId)
+    )
+`
+db.exec(createLiveChatReports)
 
 /**
  * Adds $ to object keys in order to make it act as a valid bun SQLite query object
@@ -413,6 +434,24 @@ const internal: DbInternals = {
             createVipQuery.run(data.intId, data.codeHash, epochMs)
         }
     },
+    insertLiveChatReport: function(data) {
+        const insertReportQuery = db.query("INSERT INTO LiveChatReports (reporterId, messageId, reason, reportDate) VALUES (?1, ?2, ?3, ?4)")
+        insertReportQuery.run(data.reporterId, data.messageId, data.reason, Date.now())
+    },
+    getLiveChatMessage: function(intId) {
+        // Message may not be in the DB yet if recently sent so getting a message requires some logic
+        const getMessageQuery = db.query<LiveChatMessage, number>("SELECT * FROM LiveChatMessages WHERE messageId = ?1")
+        const message = getMessageQuery.get(intId)
+        if (message != null) {
+            return message
+        }
+        for (const pendingMessage of liveChatInserts._elements) {
+            if (pendingMessage.messageId == intId) {
+                return pendingMessage
+            }
+        }
+        return null
+    },
     exec: function(data) {
         try {
             const query = db.query(data.stmt)
@@ -421,7 +460,7 @@ const internal: DbInternals = {
                 : query.all(data.params))
         }
         catch(err) {
-            console.log(err)
+            console.log("Could not exec DB query: ", err)
             return null
         }
     },
