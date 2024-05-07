@@ -41,7 +41,7 @@ and Delete this to connect to the Offline Canvas!
 3. Draw A Gigantic BFDI / Cave Story / Infinite Place Anarchy 2019 Logo!
 4. Nuke EM! NUKE EM ALL!!!
 5. NUKE EM ALL YEAH YEAH YEAH! DELETE THEM ALL! YEAH YEAH YEAH! SO YOU CAN AVENGE CAVE STORY! SO YOU CAN AVENGE CAVE STORY! - Pencil
-
+And Also, Who The Heck is KC3 Thing that Erased Cave Story? And also i think OneTrueKing also vandalized Cave Story Drawing on r/place 2022 so Curly Brace shall Send him a Gegagedigedagedago Skibidi Toilet ngl.
 *Feel free to contribute!*
 
 # custom canvas
