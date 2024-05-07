@@ -1,4 +1,9 @@
 # InfinitePlaceAnarchy2019 - An open source fork of https://rplace.live.
+Copyright (C) 2004, 2023-2024 Gegagedigedagedago Entertainment, rplace.live, Central Alliance(r/place_centrallalliance), Daniel Fletcher and DF Entertainment, Chain Pact Allies, r/MrRobot/Rasiccas Alliance, GAME-CLI-SRV-DEV, Outfit8TSB, Skibidi Toilet Entertainment, NogyangSpigot, r/OMORI, r/Oneshot, r/CrossCode, r/Austria, r/Hungary, r/Korea, r/touhou, r/canada, r/peru, r/ukraine, SCEA(Playstation DreamScape Owner), r/Arkeanos, r/koibu, r/inanimateinsanity, r/Chargers, r/hammers, r/placetux, r/de, r/placede, r/germany, r/france, r/morocco, r/placecanada, r/osuplace, r/osugame, r/portugal, r/anarchychess, Outfit7GameStorageTSB Entertainment Corporation Co. Ltd, All Rights Reserved.
+
+Our Version of rplace.live got approved by Zekiah-A.
+the connection of wss://server.rplace.live:443 address will be available when countdown at 7.19 is over.
+Please Wait!
 
 This site aims to be as similar to the april fools r/place event, where users were given a 2000x2000px canvas, allowing anyone to place a single pixel on it at a time. but we upgraded to bigger one. from this one lot of canvas can be played on this site via typing server address of your tkofficial server.
 
